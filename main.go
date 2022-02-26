@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
-	_ "github.com/erik770/HW1/pkg/uniq"
 	"log"
 	"os"
 	// "strconv"
