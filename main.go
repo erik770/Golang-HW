@@ -7,11 +7,22 @@ import (
 
 func main() {
 	input, output, flags := uniq.ReadOptions()
-	data, _ := uniq.ReadFile(input)
-	err := uniq.ValidateFlags(flags)
-	if err != nil {
-		log.Fatal(err)
-	}
-	uniq.WriteFile(output, uniq.Uniq(data, flags), flags)
 
+	data, err := uniq.ReadFile(input)
+	if err != nil {
+		log.Fatalf("READ ERR")
+		return
+	}
+
+	err = uniq.ValidateFlags(flags)
+	if err != nil {
+		log.Fatalf("VALIDATE ERR")
+		return
+	}
+
+	err = uniq.WriteFile(output, uniq.Uniq(data, flags))
+	if err != nil {
+		log.Fatalf("WRITE ERR")
+		return
+	}
 }

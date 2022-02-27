@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"log"
 	"os"
 	"strconv"
 	"strings"
@@ -57,7 +58,7 @@ func ReadFile(filePath string) (res []string, err error) {
 	return res, err
 }
 
-func WriteFile(fileName string, data []string, flags Flags) (err error) {
+func WriteFile(fileName string, data []string) (err error) {
 	var output *os.File
 
 	if fileName != "" {
@@ -77,21 +78,23 @@ func WriteFile(fileName string, data []string, flags Flags) (err error) {
 		}
 
 	}
-	return
+	return nil
 }
 
 func ValidateFlags(flags Flags) (err error) {
 	if flags.unique && flags.count || flags.unique && flags.duplicate || flags.count && flags.duplicate {
-		return errors.New("недопустимый набор флагов, гайдлайн по флагам:\n" +
+		log.Printf("недопустимый набор флагов, гайдлайн по флагам:\n" +
 			"uniq [-count | -duplicate | -unique] [-ignoreReg] [-fieldsSkip num] [-skipChars chars] [input_file [output_file]]\n\n")
+		return errors.New("NO VALIDE FLAGS")
+
 	}
 	return nil
 }
 
-func IgnoringOption(data []string, RegisterIgnore bool, StringsToIgnore int, CharsToIgnore int) (res []string) {
-	if RegisterIgnore {
-		for _, elem := range data {
-			elem = strings.ToLower(elem)
+func IgnoringOption(data []string, RegisterIgnore bool, StringsToIgnore int, CharsToIgnore int) []string {
+	if RegisterIgnore == true {
+		for i := 0; i < len(data); i++ {
+			data[i] = strings.ToLower(data[i])
 		}
 	}
 
@@ -121,12 +124,19 @@ func createCounterMap(data []string) (counterMap map[string]int) {
 	for index, elem := range data {
 		if index == 0 {
 			prevString = elem
+			counterMap[elem] = 0
 			continue
 		}
 
+		_, exist := counterMap[elem]
+
+		if !exist {
+			counterMap[elem] = 0
+		}
 		if prevString == elem {
 			counterMap[elem]++
 		}
+
 		prevString = elem
 	}
 	return counterMap
@@ -160,6 +170,7 @@ func Uniq(data []string, flags Flags) []string {
 			}
 			prevString = elem
 		}
+		counterMap[prevString]++
 		resStr := strconv.Itoa(counterMap[prevString]) + " " + prevString
 		res = append(res, resStr)
 
@@ -188,7 +199,5 @@ func Uniq(data []string, flags Flags) []string {
 			prevString = elem
 		}
 	}
-
-	//}
 	return res
 }
