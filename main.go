@@ -1,7 +1,20 @@
-package Golang_HW
+package main
 
-import "fmt"
+import (
+	"bufio"
+	"fmt"
+	"github.com/erik770/Golang-HW/pkg/calc"
+	"os"
+)
 
 func main() {
-	fmt.Println("hellow")
+	scanner := bufio.NewScanner(os.Stdin)
+	scanner.Scan()
+	expression := scanner.Text()
+	res, err := calc.Calculate(expression)
+	if err != nil {
+		//log.Fatalf("CALC ERR", err)
+		return
+	}
+	fmt.Println(res)
 }
