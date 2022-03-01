@@ -6,7 +6,8 @@ import (
 )
 
 func main() {
-	input, output, flags := uniq.ReadOptions()
+	flags := uniq.MyParseFlags()
+	input, output := uniq.ReadInputOutputPaths()
 
 	data, err := uniq.ReadFile(input)
 	if err != nil {

@@ -20,7 +20,7 @@ type Flags struct {
 	skipChars  int
 }
 
-func ReadOptions() (input, output string, flags Flags) {
+func MyParseFlags() (flags Flags) {
 	flag.BoolVar(&flags.count, "c", false, "Count number of repeats")
 	flag.BoolVar(&flags.duplicate, "d", false, "Only duplicate strings")
 	flag.BoolVar(&flags.unique, "u", false, "Only unique strings")
@@ -28,9 +28,14 @@ func ReadOptions() (input, output string, flags Flags) {
 	flag.IntVar(&flags.fieldsSkip, "f", -1, "Skip first num_fields")
 	flag.IntVar(&flags.skipChars, "s", -1, "Skip first num_chars in sting")
 	flag.Parse()
+	return flags
+}
+
+func ReadInputOutputPaths() (input, output string) {
+	flag.Parse()
 	input = flag.Arg(0)
 	output = flag.Arg(1)
-	return input, output, flags
+	return input, output
 }
 
 func ReadFile(filePath string) (res []string, err error) {
@@ -59,7 +64,7 @@ func ReadFile(filePath string) (res []string, err error) {
 }
 
 func WriteFile(fileName string, data []string) (err error) {
-	var output *os.File
+	output := os.Stdout
 
 	if fileName != "" {
 		output, err = os.Create(fileName)
@@ -67,8 +72,6 @@ func WriteFile(fileName string, data []string) (err error) {
 			return err
 		}
 		defer output.Close()
-	} else {
-		output = os.Stdout
 	}
 
 	for _, elem := range data {
@@ -82,38 +85,40 @@ func WriteFile(fileName string, data []string) (err error) {
 }
 
 func ValidateFlags(flags Flags) (err error) {
-	if flags.unique && flags.count || flags.unique && flags.duplicate || flags.count && flags.duplicate {
+	if (flags.unique && flags.count) || (flags.unique && flags.duplicate) || (flags.count && flags.duplicate) || flags.fieldsSkip < -1 || flags.skipChars < -1 {
 		log.Printf("недопустимый набор флагов, гайдлайн по флагам:\n" +
-			"uniq [-count | -duplicate | -unique] [-ignoreReg] [-fieldsSkip num] [-skipChars chars] [input_file [output_file]]\n\n")
+			"uniq [-count | -duplicate | -unique] [-ignoreReg] [-fieldsSkip num (pos number)]" +
+			" [-skipChars chars (pos number)] [input_file [output_file]]\n\n")
 		return errors.New("NO VALIDE FLAGS")
-
 	}
+
 	return nil
 }
 
-func IgnoringOption(data []string, RegisterIgnore bool, StringsToIgnore int, CharsToIgnore int) []string {
-	if RegisterIgnore == true {
-		for i := 0; i < len(data); i++ {
-			data[i] = strings.ToLower(data[i])
-		}
+func registerIgnoreOption(data []string) []string {
+	for i := 0; i < len(data); i++ {
+		data[i] = strings.ToLower(data[i])
 	}
+	return data
+}
 
-	if StringsToIgnore > 0 {
-		data = data[StringsToIgnore:]
-	}
+func stringsIgnoreOption(data []string, stringsToIgnore int) []string {
+	data = data[stringsToIgnore:]
+	return data
+}
 
+func charsIgnoreOption(data []string, charsToIgnore int) []string {
 	stringSkipCounter := 0
-	if CharsToIgnore > 0 {
-		for _, elem := range data {
-			if len(elem) > CharsToIgnore {
-				break
-			}
-			stringSkipCounter++
-			CharsToIgnore -= len(elem)
+	for _, elem := range data {
+		if len(elem) > charsToIgnore {
+			break
 		}
-		data = data[stringSkipCounter:]
-		data[0] = data[0][CharsToIgnore:]
+		stringSkipCounter++
+		charsToIgnore -= len(elem)
 	}
+
+	data = data[stringSkipCounter:]
+	data[0] = data[0][charsToIgnore:]
 	return data
 }
 
@@ -142,11 +147,21 @@ func createCounterMap(data []string) (counterMap map[string]int) {
 	return counterMap
 }
 
+func addNumOfRepeatsToString(repeatingString string, numberOfRepeats int) string {
+	return strconv.Itoa(numberOfRepeats) + " " + repeatingString
+}
+
 func Uniq(data []string, flags Flags) []string {
 	var res []string
 
-	if flags.fieldsSkip != -1 || flags.skipChars != -1 || flags.ignoreReg {
-		data = IgnoringOption(data, flags.ignoreReg, flags.fieldsSkip, flags.skipChars)
+	if flags.ignoreReg {
+		data = registerIgnoreOption(data)
+	}
+	if flags.fieldsSkip != -1 {
+		data = stringsIgnoreOption(data, flags.fieldsSkip)
+	}
+	if flags.skipChars != -1 {
+		data = charsIgnoreOption(data, flags.skipChars)
 	}
 
 	switch {
@@ -162,12 +177,14 @@ func Uniq(data []string, flags Flags) []string {
 
 			if prevString == elem {
 				counterMap[elem]++
-			} else {
-				counterMap[prevString]++
-				resStr := strconv.Itoa(counterMap[prevString]) + " " + prevString
-				res = append(res, resStr)
-				counterMap[prevString] = 0
+				prevString = elem
+				continue
 			}
+
+			counterMap[prevString]++
+			res = append(res, addNumOfRepeatsToString(prevString, counterMap[prevString]))
+			counterMap[prevString] = 0
+
 			prevString = elem
 		}
 		counterMap[prevString]++
