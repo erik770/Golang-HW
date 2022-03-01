@@ -62,15 +62,22 @@ func isDigit(element string) bool {
 }
 
 func isOperator(element string) bool {
-	operands := map[string]bool{"(": true, ")": true, "+": true, "-": true, "*": true, "/": true}
+	operands := map[string]bool{
+		"(": true,
+		")": true,
+		"+": true,
+		"-": true,
+		"*": true,
+		"/": true,
+	}
 	if _, isExist := operands[element]; !isExist {
 		return false
 	}
 	return true
 }
 
-func getOperatorPriority(operand string) int8 {
-	operandsPriority := map[string]int8{
+func getOperatorPriority(operand string) int {
+	operandsPriority := map[string]int{
 		"(": lowestPriority,
 		"/": lowPriority,
 		"*": lowPriority,
@@ -122,7 +129,7 @@ func reformatExpression(expression string) []string {
 	return resExpression
 }
 
-func evaluate(expression []string) (string, error) { // основная логика
+func evaluate(expression []string) (string, error) {
 	var operatorsStack, operandsStack stack
 
 	operatorsStack.push(expression[0])

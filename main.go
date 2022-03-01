@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"github.com/erik770/Golang-HW/pkg/calc"
+	"log"
 	"os"
 )
 
@@ -13,7 +14,7 @@ func main() {
 	expression := scanner.Text()
 	res, err := calc.Calculate(expression)
 	if err != nil {
-		//log.Fatalf("CALC ERR", err)
+		log.Fatalf("CALC ERR", err)
 		return
 	}
 	fmt.Println(res)
