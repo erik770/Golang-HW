@@ -20,7 +20,17 @@ type Flags struct {
 	skipChars  int
 }
 
-func MyParseFlags() (flags Flags) {
+func ValidateFlags(flags Flags) (err error) {
+	if (flags.unique && flags.count) || (flags.unique && flags.duplicate) || (flags.count && flags.duplicate) || flags.fieldsSkip < -1 || flags.skipChars < -1 {
+		log.Printf("недопустимый набор флагов, гайдлайн по флагам:\n" +
+			"uniq [-count | -duplicate | -unique] [-ignoreReg] [-fieldsSkip num (pos number)]" +
+			" [-skipChars chars (pos number)] [input_file [output_file]]\n\n")
+		return errors.New("NO VALIDE FLAGS")
+	}
+
+	return nil
+}
+func MyParseFlags() (flags Flags, err error) {
 	flag.BoolVar(&flags.count, "c", false, "Count number of repeats")
 	flag.BoolVar(&flags.duplicate, "d", false, "Only duplicate strings")
 	flag.BoolVar(&flags.unique, "u", false, "Only unique strings")
@@ -28,7 +38,10 @@ func MyParseFlags() (flags Flags) {
 	flag.IntVar(&flags.fieldsSkip, "f", -1, "Skip first num_fields")
 	flag.IntVar(&flags.skipChars, "s", -1, "Skip first num_chars in sting")
 	flag.Parse()
-	return flags
+	if err := ValidateFlags(flags); err != nil {
+		return flags, err
+	}
+	return flags, nil
 }
 
 func ReadInputOutputPaths() (input, output string) {
@@ -38,7 +51,7 @@ func ReadInputOutputPaths() (input, output string) {
 	return input, output
 }
 
-func ReadFile(filePath string) (res []string, err error) {
+func ReadFromInput(filePath string) (res []string, err error) {
 	var openErr error
 	input := os.Stdin
 
@@ -84,20 +97,9 @@ func WriteFile(fileName string, data []string) (err error) {
 	return nil
 }
 
-func ValidateFlags(flags Flags) (err error) {
-	if (flags.unique && flags.count) || (flags.unique && flags.duplicate) || (flags.count && flags.duplicate) || flags.fieldsSkip < -1 || flags.skipChars < -1 {
-		log.Printf("недопустимый набор флагов, гайдлайн по флагам:\n" +
-			"uniq [-count | -duplicate | -unique] [-ignoreReg] [-fieldsSkip num (pos number)]" +
-			" [-skipChars chars (pos number)] [input_file [output_file]]\n\n")
-		return errors.New("NO VALIDE FLAGS")
-	}
-
-	return nil
-}
-
 func registerIgnoreOption(data []string) []string {
-	for i := 0; i < len(data); i++ {
-		data[i] = strings.ToLower(data[i])
+	for index := range data {
+		data[index] = strings.ToLower(data[index])
 	}
 	return data
 }
@@ -109,12 +111,12 @@ func stringsIgnoreOption(data []string, stringsToIgnore int) []string {
 
 func charsIgnoreOption(data []string, charsToIgnore int) []string {
 	stringSkipCounter := 0
-	for _, elem := range data {
-		if len(elem) > charsToIgnore {
+	for _, str := range data {
+		if len(str) > charsToIgnore {
 			break
 		}
 		stringSkipCounter++
-		charsToIgnore -= len(elem)
+		charsToIgnore -= len(str)
 	}
 
 	data = data[stringSkipCounter:]
@@ -126,23 +128,23 @@ func createCounterMap(data []string) (counterMap map[string]int) {
 	counterMap = make(map[string]int)
 
 	var prevString string
-	for index, elem := range data {
+	for index, str := range data {
 		if index == 0 {
-			prevString = elem
-			counterMap[elem] = 0
+			prevString = str
+			counterMap[str] = 0
 			continue
 		}
 
-		_, exist := counterMap[elem]
+		_, exist := counterMap[str]
 
 		if !exist {
-			counterMap[elem] = 0
+			counterMap[str] = 0
 		}
-		if prevString == elem {
-			counterMap[elem]++
+		if prevString == str {
+			counterMap[str]++
 		}
 
-		prevString = elem
+		prevString = str
 	}
 	return counterMap
 }
@@ -169,15 +171,15 @@ func Uniq(data []string, flags Flags) []string {
 		counterMap := make(map[string]int)
 
 		var prevString string
-		for index, elem := range data {
+		for index, str := range data {
 			if index == 0 {
-				prevString = elem
+				prevString = str
 				continue
 			}
 
-			if prevString == elem {
-				counterMap[elem]++
-				prevString = elem
+			if prevString == str {
+				counterMap[str]++
+				prevString = str
 				continue
 			}
 
@@ -185,7 +187,7 @@ func Uniq(data []string, flags Flags) []string {
 			res = append(res, addNumOfRepeatsToString(prevString, counterMap[prevString]))
 			counterMap[prevString] = 0
 
-			prevString = elem
+			prevString = str
 		}
 		counterMap[prevString]++
 		resStr := strconv.Itoa(counterMap[prevString]) + " " + prevString
@@ -193,9 +195,9 @@ func Uniq(data []string, flags Flags) []string {
 
 	case flags.unique:
 		counterMap := createCounterMap(data)
-		for _, elem := range data {
-			if counterMap[elem] == 0 {
-				res = append(res, elem)
+		for _, str := range data {
+			if counterMap[str] == 0 {
+				res = append(res, str)
 			}
 		}
 
@@ -209,11 +211,11 @@ func Uniq(data []string, flags Flags) []string {
 
 	default:
 		var prevString string
-		for _, elem := range data {
-			if prevString != elem {
-				res = append(res, elem)
+		for _, str := range data {
+			if prevString != str {
+				res = append(res, str)
 			}
-			prevString = elem
+			prevString = str
 		}
 	}
 	return res

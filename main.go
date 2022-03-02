@@ -6,24 +6,19 @@ import (
 )
 
 func main() {
-	flags := uniq.MyParseFlags()
+	flags, err := uniq.MyParseFlags()
+	if err != nil {
+		log.Fatalf("WRONG FLAGS ERR")
+	}
 	input, output := uniq.ReadInputOutputPaths()
 
-	data, err := uniq.ReadFile(input)
+	data, err := uniq.ReadFromInput(input)
 	if err != nil {
 		log.Fatalf("READ ERR")
-		return
-	}
-
-	err = uniq.ValidateFlags(flags)
-	if err != nil {
-		log.Fatalf("VALIDATE ERR")
-		return
 	}
 
 	err = uniq.WriteFile(output, uniq.Uniq(data, flags))
 	if err != nil {
 		log.Fatalf("WRITE ERR")
-		return
 	}
 }
