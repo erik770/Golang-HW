@@ -1,7 +1,7 @@
 package calc
 
 import (
-	"fmt"
+	"github.com/stretchr/testify/require"
 	"log"
 	"testing"
 )
@@ -55,11 +55,10 @@ func TestCalculate(t *testing.T) {
 	for name, tc := range cases {
 		tc := tc
 		t.Run(name, func(t *testing.T) {
-			actualValue, err := Calculate(tc.in)
-			if err != tc.expected.err || actualValue != tc.expected.resValue {
-				fmt.Println(err)
-				log.Fatalf("ERROR")
-			}
+			var actual calculateOutput
+			actual.resValue, actual.err = Calculate(tc.in)
+
+			require.Equal(t, tc.expected, actual)
 		})
 		log.Println("SUCCESS")
 	}

@@ -2,43 +2,19 @@ package calc
 
 import (
 	"errors"
-	"log"
+	"github.com/erik770/Golang-HW/pkg/stack"
 	"strconv"
+	"strings"
 )
+
+type Priority int
 
 const (
-	lowestPriority = -2
-	lowPriority    = iota
-	mediumPriority
-	highPriority
+	lowest Priority = -2
+	low    Priority = 1
+	medium Priority = 2
+	high   Priority = 3
 )
-
-type stack struct {
-	data   []string
-	length int
-}
-
-func (s *stack) push(element string) {
-	(*s).length++
-	(*s).data = append((*s).data, element)
-}
-
-func (s *stack) pop() string {
-	if (*s).length == 0 {
-		log.Fatal("pop empty stack")
-	}
-	returnValue := (*s).data[(*s).length-1]
-	(*s).data = (*s).data[:(*s).length-1]
-	(*s).length--
-	return returnValue
-}
-
-func (s stack) top() string {
-	if s.length == 0 {
-		log.Fatal("top empty stack")
-	}
-	return s.data[s.length-1]
-}
 
 func Calculate(expression string) (string, error) {
 	err := checkExpression(expression)
@@ -62,13 +38,13 @@ func isDigit(element string) bool {
 }
 
 func isOperator(element string) bool {
-	operands := map[string]bool{
-		"(": true,
-		")": true,
-		"+": true,
-		"-": true,
-		"*": true,
-		"/": true,
+	operands := map[string]struct{}{
+		"(": {},
+		")": {},
+		"+": {},
+		"-": {},
+		"*": {},
+		"/": {},
 	}
 	if _, isExist := operands[element]; !isExist {
 		return false
@@ -76,20 +52,23 @@ func isOperator(element string) bool {
 	return true
 }
 
-func getOperatorPriority(operand string) int {
-	operandsPriority := map[string]int{
-		"(": lowestPriority,
-		"/": lowPriority,
-		"*": lowPriority,
-		"+": mediumPriority,
-		"-": mediumPriority,
-		")": highPriority,
+func getOperatorPriority(operand string) Priority {
+	operandsPriority := map[string]Priority{
+		"(": lowest,
+		"/": low,
+		"*": low,
+		"+": medium,
+		"-": medium,
+		")": high,
 	}
 	return operandsPriority[operand]
 }
 
 func checkExpression(expression string) error {
-	var openingBracket, closingBracket int
+	var (
+		openingBracket int
+		closingBracket int
+	)
 	for i := range expression {
 		if !isDigit(string(expression[i])) && !isOperator(string(expression[i])) && expression[i] != ' ' {
 			return errors.New("bad symbol in expression")
@@ -110,16 +89,18 @@ func checkExpression(expression string) error {
 
 func reformatExpression(expression string) []string {
 	expression = "(" + expression + ")"
-	//expression = expression + ")"
+
 	var resExpression []string
-	for i := 0; i < len(expression); i++ {
+	sliceExpr := strings.Split(expression, "")
+
+	for i := 0; i < len(sliceExpr); i++ {
 		switch {
-		case isOperator(string(expression[i])):
-			resExpression = append(resExpression, string(expression[i]))
-		case isDigit(string(expression[i])):
+		case isOperator(sliceExpr[i]):
+			resExpression = append(resExpression, sliceExpr[i])
+		case isDigit(sliceExpr[i]):
 			var value string
-			for ; isDigit(string(expression[i])); i++ {
-				value += string(expression[i])
+			for ; isDigit(sliceExpr[i]); i++ {
+				value += sliceExpr[i]
 			}
 			resExpression = append(resExpression, value)
 			i--
@@ -129,37 +110,49 @@ func reformatExpression(expression string) []string {
 	return resExpression
 }
 
-func evaluate(expression []string) (string, error) {
-	var operatorsStack, operandsStack stack
+func operatorHandler(operator string, operatorsStack, operandsStack *stack.Stack, isLast bool) (res string, err error) {
+	currentPriority, lastPriority := getOperatorPriority(operator), getOperatorPriority(operatorsStack.Top())
+	for currentPriority >= lastPriority && currentPriority+lastPriority > 0 {
+		switch {
+		case operandsStack.GetLen() == 1 && isLast:
+			return operandsStack.Pop(), nil
+		case operatorsStack.Top() == "(":
+			operatorsStack.Pop()
+			currentPriority = 0
+			continue
+		}
+		rightOperand, leftOperand := operandsStack.Pop(), operandsStack.Pop()
+		exp, err := binaryEvaluate(leftOperand, rightOperand, operatorsStack.Pop())
+		if err != nil {
+			return "", err
+		}
+		operandsStack.Push(exp)
+		lastPriority = getOperatorPriority(operatorsStack.Top())
+	}
+	if currentPriority != 0 {
+		operatorsStack.Push(operator)
+		return "", err
+	}
+	return "", err
+}
 
-	operatorsStack.push(expression[0])
+func evaluate(expression []string) (string, error) {
+	var (
+		operatorsStack stack.Stack
+		operandsStack  stack.Stack
+	)
+
+	operatorsStack.Push(expression[0])
 	expression = expression[1:]
 	for i := range expression {
 		switch {
 		case isOperator(expression[i]):
-			currentPriority, lastPriority := getOperatorPriority(expression[i]), getOperatorPriority(operatorsStack.top())
-			for currentPriority >= lastPriority && currentPriority+lastPriority > 0 {
-				switch {
-				case operandsStack.length == 1 && len(expression)-1 == i:
-					return operandsStack.pop(), nil
-				case operatorsStack.top() == "(":
-					operatorsStack.pop()
-					currentPriority = 0
-					continue
-				}
-				rightOperand, leftOperand := operandsStack.pop(), operandsStack.pop()
-				exp, err := binaryEvaluate(leftOperand, rightOperand, operatorsStack.pop())
-				if err != nil {
-					return "", err
-				}
-				operandsStack.push(exp)
-				lastPriority = getOperatorPriority(operatorsStack.top())
-			}
-			if currentPriority != 0 {
-				operatorsStack.push(expression[i])
+			res, err := operatorHandler(expression[i], &operatorsStack, &operandsStack, len(expression)-1 == i)
+			if err != nil || res != "" {
+				return res, err
 			}
 		case isDigit(expression[i]):
-			operandsStack.push(expression[i])
+			operandsStack.Push(expression[i])
 		}
 	}
 

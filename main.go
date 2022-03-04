@@ -1,21 +1,25 @@
 package main
 
 import (
-	"bufio"
-	"fmt"
 	"github.com/erik770/Golang-HW/pkg/calc"
+	"github.com/erik770/Golang-HW/pkg/readwrite"
 	"log"
-	"os"
 )
 
 func main() {
-	scanner := bufio.NewScanner(os.Stdin)
-	scanner.Scan()
-	expression := scanner.Text()
+	expression, err := readwrite.ScanFromInput()
+	if err != nil {
+		log.Fatalf("READ ERR")
+	}
+
 	res, err := calc.Calculate(expression)
 	if err != nil {
-		log.Fatalf("CALC ERR", err)
+		log.Fatalf("CALC ERR")
 		return
 	}
-	fmt.Println(res)
+
+	err = readwrite.WriteToOutput(res)
+	if err != nil {
+		log.Fatalf("WRITE ERR")
+	}
 }
